@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>LLM Client</title>
+  </head>
+  <body>
+    <h1>LLM Client</h1>
+
+    <div style="margin-bottom: 16px">
+      <button id="connect-button" onclick="connectWebsocket()">
+        connect to server
+      </button>
+      <button id="disconnect-button" onclick="disconnectWebsocket()" disabled>
+        close server connection
+      </button>
+    </div>
+
+    <textarea
+      id="message-textarea"
+      placeholder="input your text, and click the button to generate more!"
+      style="height: 300px; width: 100%"
+    ></textarea>
+
+    <div style="margin-top: 8px">
+      <button id="generate-button" onclick="generateText()" disabled>
+        generate text
+      </button>
+      <button id="stop-generation-button" onclick="stopGeneration()" disabled>
+        stop generation
+      </button>
+    </div>
+
+    <script>
+      let socket = null;
+
+      const connectWebsocket = () => {
+        try {
+          socket = new WebSocket("ws://127.0.0.1:3001");
+          socket.addEventListener("message", (event) => {
+            const data = JSON.parse(event.data);
+            switch (data.level) {
+              case "success": {
+                document.getElementById("message-textarea").value +=
+                  data.message;
+                break;
+              }
+              case "error":
+                alert(`server error ${data.message}`);
+            }
+          });
+          alert("successfully connected to server");
+          document.getElementById("connect-button").disabled = true;
+          document.getElementById("disconnect-button").disabled = false;
+          document.getElementById("generate-button").disabled = false;
+        } catch (e) {
+          alert(`failed to connect to websocket server ${e}\nmaybe try again?`);
+        }
+      };
+
+      const disconnectWebsocket = () => {
+        document.getElementById("connect-button").disabled = false;
+        document.getElementById("disconnect-button").disabled = true;
+        document.getElementById("generate-button").disabled = true;
+        if (socket) {
+          socket.close();
+        }
+      };
+
+      const generateText = () => {
+        document.getElementById("generate-button").disabled = true;
+        document.getElementById("stop-generation-button").disabled = false;
+        socket.send(
+          JSON.stringify({
+            action: "evaluate",
+            message: document.getElementById("message-textarea").value,
+          })
+        );
+      };
+
+      const stopGeneration = () => {
+        document.getElementById("generate-button").disabled = false;
+        socket.send(JSON.stringify({ action: "stop" }));
+      };
+    </script>
+  </body>
+</html>
