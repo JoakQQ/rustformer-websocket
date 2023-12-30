@@ -44,6 +44,12 @@
                   data.message;
                 break;
               }
+              case "busy": {
+                alert("the server is busy, please try again later");
+                document.getElementById("generate-button").disabled = false;
+                document.getElementById("stop-generation-button").disabled = true;
+                break;
+              }
               case "error":
                 alert(`server error ${data.message}`);
             }

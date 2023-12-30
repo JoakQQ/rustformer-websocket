@@ -66,7 +66,7 @@ pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama)
                                 let model = Arc::clone(&model);
                                 let closure_sender = Arc::clone(&message_sender);
                                 let thread_flag = Arc::clone(&flag);
-                                thread::spawn(move || loop {
+                                thread::spawn(move || {
                                     if let Ok(model) = model.try_lock() {
                                         println!("[{i}] using model");
                                         if let Err(err_message) =
@@ -96,15 +96,14 @@ pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama)
                                             .to_socket_message();
                                             message_sender.send(message).unwrap();
                                         }
-                                        break;
                                     } else {
-                                        thread::sleep(time::Duration::from_secs(1));
                                         let message = SocketResponse::new(
                                             SocketResponseLevel::Busy,
                                             "please wait a second, the server is busy now ...",
                                         )
                                         .to_socket_message();
                                         message_sender.send(message).unwrap();
+                                        return;
                                     }
                                 });
                             }
