@@ -21,6 +21,36 @@
       style="height: 300px; width: 100%"
     ></textarea>
 
+    <div style="margin-top: 8px; display: flex; gap: 8px 16px; flex-wrap: wrap">
+      <div title="The top K words by score are kept during sampling.">
+        <label for="top-k">Top-K: </label
+        ><input id="top-k" type="number" value="40" />
+      </div>
+      <div
+        title="The cumulative probability after which no more words are kept for sampling."
+      >
+        <label for="top-k">Top-P: </label
+        ><input id="top-p" type="number" value="0.95" />
+      </div>
+      <div
+        title="The penalty for repeating tokens. Higher values make the generation less likely to get into a loop, but may harm results when repetitive outputs are desired."
+      >
+        <label for="repeat-penalty">Repeat Penalty: </label
+        ><input id="repeat-penalty" type="number" value="1.45" />
+      </div>
+      <div
+        title="Temperature (randomness) used for sampling. A higher number is more random."
+      >
+        <label for="temperature">Temperature: </label
+        ><input id="temperature" type="number" value="0.85" />
+      </div>
+      <div title="The number of tokens to consider for the repetition penalty.">
+        <label for="repetition-penalty-last-n"
+          >Repetition Penalty Last N: </label
+        ><input id="repetition-penalty-last-n" type="number" value="512" />
+      </div>
+    </div>
+
     <div style="margin-top: 8px">
       <button id="generate-button" onclick="generateText()" disabled>
         generate text
@@ -34,33 +64,33 @@
       let socket = null;
 
       const connectWebsocket = () => {
-        try {
-          socket = new WebSocket("ws://127.0.0.1:3001");
-          socket.addEventListener("message", (event) => {
-            const data = JSON.parse(event.data);
-            switch (data.level) {
-              case "success": {
-                document.getElementById("message-textarea").value +=
-                  data.message;
-                break;
-              }
-              case "busy": {
-                alert("the server is busy, please try again later");
-                document.getElementById("generate-button").disabled = false;
-                document.getElementById("stop-generation-button").disabled = true;
-                break;
-              }
-              case "error":
-                alert(`server error ${data.message}`);
-            }
-          });
+        socket = new WebSocket("ws://127.0.0.1:3001");
+        socket.addEventListener("open", () => {
           alert("successfully connected to server");
           document.getElementById("connect-button").disabled = true;
           document.getElementById("disconnect-button").disabled = false;
           document.getElementById("generate-button").disabled = false;
-        } catch (e) {
-          alert(`failed to connect to websocket server ${e}\nmaybe try again?`);
-        }
+        });
+        socket.addEventListener("error", (error) => {
+          alert("failed to connect to server");
+        });
+        socket.addEventListener("message", (event) => {
+          const data = JSON.parse(event.data);
+          switch (data.level) {
+            case "success": {
+              document.getElementById("message-textarea").value += data.message;
+              break;
+            }
+            case "busy": {
+              alert("the server is busy, please try again later");
+              document.getElementById("generate-button").disabled = false;
+              document.getElementById("stop-generation-button").disabled = true;
+              break;
+            }
+            case "error":
+              alert(`server error ${data.message}`);
+          }
+        });
       };
 
       const disconnectWebsocket = () => {
@@ -79,6 +109,17 @@
           JSON.stringify({
             action: "evaluate",
             message: document.getElementById("message-textarea").value,
+            parameters: {
+              "top-k": Number(document.getElementById("top-k").value),
+              "top-p": Number(document.getElementById("top-p").value),
+              "repeat-penalty": Number(
+                document.getElementById("repeat-penalty").value
+              ),
+              temperature: Number(document.getElementById("temperature").value),
+              "repetition-penalty-last-n": Number(
+                document.getElementById("repetition-penalty-last-n").value
+              ),
+            },
           })
         );
       };

@@ -1,5 +1,6 @@
 use core::time;
 use llm::models::Llama;
+use llm::InferenceParameters;
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
@@ -69,8 +70,36 @@ pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama)
                                 thread::spawn(move || {
                                     if let Ok(model) = model.try_lock() {
                                         println!("[{i}] using model");
-                                        if let Err(err_message) =
-                                            infer(&model, req.message, move |t: &str| {
+                                        let eval_message = match req.message {
+                                            Some(m) => m,
+                                            None => {
+                                                let message = SocketResponse::new(
+                                                    SocketResponseLevel::Error,
+                                                    "the `message` field is missing",
+                                                )
+                                                .to_socket_message();
+                                                message_sender.send(message).unwrap();
+                                                return;
+                                            }
+                                        };
+                                        let model_parameters = match req.parameters {
+                                            Some(p) => InferenceParameters {
+                                                top_k: p.top_k.unwrap_or(40),
+                                                top_p: p.top_p.unwrap_or(0.95),
+                                                repeat_penalty: p.repeat_penalty.unwrap_or(1.45),
+                                                temperature: p.temperature.unwrap_or(0.85),
+                                                repetition_penalty_last_n: p
+                                                    .repetition_penalty_last_n
+                                                    .unwrap_or(512),
+                                                ..InferenceParameters::default()
+                                            },
+                                            None => InferenceParameters::default(),
+                                        };
+                                        if let Err(err_message) = infer(
+                                            &model,
+                                            eval_message,
+                                            model_parameters,
+                                            move |t: &str| {
                                                 let closure_sender = Arc::clone(&closure_sender);
                                                 let thread_flag = Arc::clone(&thread_flag);
                                                 if thread_flag.load(Ordering::Relaxed) {
@@ -87,8 +116,8 @@ pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama)
                                                 } else {
                                                     Ok(())
                                                 }
-                                            })
-                                        {
+                                            },
+                                        ) {
                                             let message = SocketResponse::new(
                                                 SocketResponseLevel::Error,
                                                 &err_message,

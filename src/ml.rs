@@ -1,8 +1,10 @@
 use llm::{
-    load, load_progress_callback_stdout, models::Llama, InferenceError, InferenceRequest, Model,
-    OutputRequest, TokenUtf8Buffer,
+    load, load_progress_callback_stdout, models::Llama, InferenceError, InferenceParameters,
+    InferenceRequest, Model, OutputRequest, TokenUtf8Buffer,
 };
 use rand::thread_rng;
+
+const NUMBER_OF_THREADS: usize = 4;
 
 pub fn get_model(path: &str) -> Llama {
     load::<Llama>(
@@ -16,6 +18,7 @@ pub fn get_model(path: &str) -> Llama {
 pub fn infer(
     model: &Llama,
     prompt: String,
+    parameters: InferenceParameters,
     callback: impl FnMut(&str) -> Result<(), ()>,
 ) -> Result<(), String> {
     sesson_infer(
@@ -24,6 +27,10 @@ pub fn infer(
         &InferenceRequest {
             prompt: prompt.as_str(),
             maximum_token_count: Some(300),
+            parameters: Some(&InferenceParameters {
+                n_threads: NUMBER_OF_THREADS,
+                ..parameters
+            }),
             ..Default::default()
         },
         &mut Default::default(),

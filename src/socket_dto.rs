@@ -36,8 +36,21 @@ pub enum SocketRequestAction {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ModelParameters {
+    #[serde(rename(deserialize = "top-k"))]
+    pub top_k: Option<usize>,
+    #[serde(rename(deserialize = "top-p"))]
+    pub top_p: Option<f32>,
+    #[serde(rename(deserialize = "repeat-penalty"))]
+    pub repeat_penalty: Option<f32>,
+    pub temperature: Option<f32>,
+    #[serde(rename(deserialize = "repetition-penalty-last-n"))]
+    pub repetition_penalty_last_n: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct SocketRequest {
     pub action: SocketRequestAction,
-    #[serde(default)]
-    pub message: String,
+    pub message: Option<String>,
+    pub parameters: Option<ModelParameters>,
 }
