@@ -25,7 +25,11 @@ pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama)
             let flag = Arc::new(AtomicBool::new(false));
 
             let thread_sender = Arc::clone(&sender);
+            let thread_flag = Arc::clone(&flag);
             thread::spawn(move || loop {
+                if thread_flag.load(Ordering::Relaxed) {
+                    continue;
+                }
                 let mut sender = thread_sender.lock().unwrap();
                 let message = rx.recv().unwrap();
                 if let Err(_) = sender.send_message(&message) {}

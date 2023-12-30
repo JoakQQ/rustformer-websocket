@@ -126,6 +126,7 @@
 
       const stopGeneration = () => {
         document.getElementById("generate-button").disabled = false;
+        document.getElementById("stop-generation-button").disabled = true;
         socket.send(JSON.stringify({ action: "stop" }));
       };
     </script>
