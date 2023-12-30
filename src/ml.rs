@@ -15,11 +15,16 @@ pub fn get_model(path: &str) -> Llama {
     .unwrap_or_else(|err| panic!("failed to load model from path {path}: {err}"))
 }
 
+pub enum StepResult {
+    EndOfText,
+    Result(String),
+}
+
 pub fn infer(
     model: &Llama,
     prompt: String,
     parameters: InferenceParameters,
-    callback: impl FnMut(&str) -> Result<(), ()>,
+    callback: impl FnMut(StepResult) -> Result<(), ()>,
 ) -> Result<(), String> {
     sesson_infer(
         model,
@@ -43,7 +48,7 @@ fn sesson_infer(
     rng: &mut impl rand::Rng,
     request: &InferenceRequest,
     output_request: &mut OutputRequest,
-    mut callback: impl FnMut(&str) -> Result<(), ()>,
+    mut callback: impl FnMut(StepResult) -> Result<(), ()>,
 ) -> Result<(), String> {
     let mut session = model.start_session(Default::default());
     let maximum_token_count = request.maximum_token_count.unwrap_or(usize::MAX);
@@ -63,12 +68,15 @@ fn sesson_infer(
         let token = match session.infer_next_token(model, parameters, &mut Default::default(), rng)
         {
             Ok(token) => token,
-            Err(InferenceError::EndOfText) => break,
+            Err(InferenceError::EndOfText) => {
+                callback(StepResult::EndOfText);
+                break;
+            },
             Err(e) => return Err(e.to_string()),
         };
 
         if let Some(tokens) = token_utf8_buf.push(token) {
-            if let Err(_) = callback(&tokens) {
+            if let Err(_) = callback(StepResult::Result(tokens)) {
                 break;
             }
         }

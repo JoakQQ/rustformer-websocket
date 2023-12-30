@@ -5,6 +5,8 @@ use websocket::OwnedMessage;
 pub enum SocketResponseLevel {
     #[serde(rename(serialize = "success"))]
     Success,
+    #[serde(rename(serialize = "end-of-text"))]
+    EndOfText,
     #[serde(rename(serialize = "busy"))]
     Busy,
     #[serde(rename(serialize = "error"))]
@@ -14,12 +16,22 @@ pub enum SocketResponseLevel {
 #[derive(Debug, Serialize)]
 pub struct SocketResponse<'a> {
     level: SocketResponseLevel,
-    message: &'a str,
+    message: Option<&'a str>,
 }
 
 impl<'a> SocketResponse<'a> {
     pub fn new(level: SocketResponseLevel, message: &'a str) -> Self {
-        Self { level, message }
+        Self {
+            level,
+            message: Some(message),
+        }
+    }
+
+    pub fn end_of_text() -> Self {
+        Self {
+            level: SocketResponseLevel::EndOfText,
+            message: None,
+        }
     }
 
     pub fn to_socket_message(&self) -> OwnedMessage {

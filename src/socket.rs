@@ -10,7 +10,7 @@ use websocket::server::{NoTlsAcceptor, WsServer};
 use websocket::sync::Writer;
 use websocket::OwnedMessage;
 
-use crate::ml::infer;
+use crate::ml::{infer, StepResult};
 use crate::socket_dto::{SocketRequest, SocketRequestAction, SocketResponse, SocketResponseLevel};
 
 pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama) {
@@ -124,15 +124,22 @@ fn handle_websocket_text_request(
                         &model,
                         eval_message,
                         get_request_model_parameters(&req),
-                        move |t: &str| {
+                        move |res| {
                             let thread_flag = Arc::clone(&thread_flag);
                             if thread_flag.load(Ordering::Relaxed) {
                                 return Err(());
                             }
 
                             let closure_sender = Arc::clone(&closure_sender);
-                            let message = SocketResponse::new(SocketResponseLevel::Success, &t)
-                                .to_socket_message();
+                            let message = match res {
+                                StepResult::EndOfText => {
+                                    SocketResponse::end_of_text().to_socket_message()
+                                }
+                                StepResult::Result(s) => {
+                                    SocketResponse::new(SocketResponseLevel::Success, s.as_str())
+                                        .to_socket_message()
+                                }
+                            };
                             if let Err(_) = closure_sender.send(message) {
                                 Err(())
                             } else {
