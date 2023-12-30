@@ -62,6 +62,7 @@
 
     <script>
       let socket = null;
+      let clientConnectionErr = false;
 
       const connectWebsocket = () => {
         socket = new WebSocket("ws://127.0.0.1:3001");
@@ -72,7 +73,14 @@
           document.getElementById("generate-button").disabled = false;
         });
         socket.addEventListener("error", (error) => {
+          clientConnectionErr = true;
           alert("failed to connect to server");
+        });
+        socket.addEventListener("close", () => {
+          if (!clientConnectionErr) {
+            alert("connection is closed");
+          }
+          clientConnectionErr = false;
         });
         socket.addEventListener("message", (event) => {
           const data = JSON.parse(event.data);
