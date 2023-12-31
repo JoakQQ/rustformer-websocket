@@ -1,18 +1,20 @@
 use llm::{
-    load, load_progress_callback_stdout, models::Llama, InferenceError, InferenceParameters,
-    InferenceRequest, Model, OutputRequest, TokenUtf8Buffer,
+    load, load_progress_callback_stdout, InferenceError, InferenceParameters, InferenceRequest,
+    KnownModel, Model, OutputRequest, TokenUtf8Buffer,
 };
 use rand::thread_rng;
 
 const NUMBER_OF_THREADS: usize = 4;
 
-pub fn get_model(path: &str) -> Llama {
-    load::<Llama>(
-        std::path::Path::new(path),
-        Default::default(),
-        load_progress_callback_stdout,
+pub fn get_model<M: KnownModel>(path: &str) -> Box<M> {
+    Box::new(
+        load::<M>(
+            std::path::Path::new(path),
+            Default::default(),
+            load_progress_callback_stdout,
+        )
+        .unwrap_or_else(|err| panic!("failed to load model from path {path}: {err}")),
     )
-    .unwrap_or_else(|err| panic!("failed to load model from path {path}: {err}"))
 }
 
 pub enum StepResult {
@@ -21,7 +23,7 @@ pub enum StepResult {
 }
 
 pub fn infer(
-    model: &Llama,
+    model: &dyn Model,
     prompt: String,
     parameters: InferenceParameters,
     callback: impl FnMut(StepResult) -> Result<(), ()>,
@@ -44,7 +46,7 @@ pub fn infer(
 }
 
 fn sesson_infer(
-    model: &Llama,
+    model: &dyn Model,
     rng: &mut impl rand::Rng,
     request: &InferenceRequest,
     output_request: &mut OutputRequest,
@@ -71,7 +73,7 @@ fn sesson_infer(
             Err(InferenceError::EndOfText) => {
                 if let Err(_) = callback(StepResult::EndOfText) {}
                 break;
-            },
+            }
             Err(e) => return Err(e.to_string()),
         };
 

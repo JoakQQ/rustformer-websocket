@@ -1,6 +1,5 @@
 use core::time;
-use llm::models::Llama;
-use llm::InferenceParameters;
+use llm::{InferenceParameters, Model};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
@@ -13,7 +12,7 @@ use websocket::OwnedMessage;
 use crate::ml::{infer, StepResult};
 use crate::socket_dto::{SocketRequest, SocketRequestAction, SocketResponse, SocketResponseLevel};
 
-pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Llama) {
+pub fn handle_socket(server: WsServer<NoTlsAcceptor, TcpListener>, model: Box<dyn Model>) {
     let model = Arc::new(Mutex::new(model));
     for (i, request) in server.filter_map(Result::ok).enumerate() {
         let model = Arc::clone(&model);
@@ -93,7 +92,7 @@ fn init_websocket_sender(
 fn handle_websocket_text_request(
     current_connection: usize,
     req: SocketRequest,
-    model: &Arc<Mutex<Llama>>,
+    model: &Arc<Mutex<Box<dyn Model>>>,
     thread_flag: &Arc<AtomicBool>,
     message_sender: &Arc<Sender<OwnedMessage>>,
 ) {
@@ -121,7 +120,7 @@ fn handle_websocket_text_request(
                         }
                     };
                     if let Err(err_message) = infer(
-                        &model,
+                        model.as_ref(),
                         eval_message,
                         get_request_model_parameters(&req),
                         move |res| {
