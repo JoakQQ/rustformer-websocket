@@ -69,7 +69,7 @@ fn sesson_infer(
         {
             Ok(token) => token,
             Err(InferenceError::EndOfText) => {
-                callback(StepResult::EndOfText);
+                if let Err(_) = callback(StepResult::EndOfText) {}
                 break;
             },
             Err(e) => return Err(e.to_string()),
